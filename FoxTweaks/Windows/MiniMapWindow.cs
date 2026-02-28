@@ -17,7 +17,7 @@ namespace FoxTweaks.Windows {
     private readonly uint _circleColor = ImGui.ColorConvertFloat4ToU32(new Vector4(0.957f, 0.533f, 0.051f, 1));
     private readonly uint _borderColor = ImGui.ColorConvertFloat4ToU32(new Vector4(0.957f, 0.533f, 0.051f, 1) * 0.7f);
     private Vector2 _windowPos;
-    
+
     public MiniMapWindow(MiniMapService miniMapService, IObjectTable objectTable) : base("MiniMapWindow") {
       this.Size = new Vector2(200, 200);
       this.Position = new Vector2(200, 200);
@@ -44,15 +44,15 @@ namespace FoxTweaks.Windows {
 
     public override void Draw() {
       var drawList = ImGui.GetWindowDrawList();
-      
+
       var player = _objectTable.LocalPlayer;
       if (player is null) {
         return;
       }
-      
+
       var playerCirclePos = _miniMapService.PlayerCirclePos + _windowPos;
       playerCirclePos.Y -= 5f;
-      
+
       var friends = _objectTable.PlayerObjects.AsValueEnumerable().Where(c => (c.StatusFlags & StatusFlags.Friend) != 0);
       foreach (var battleChara in friends) {
         if ((battleChara.StatusFlags & StatusFlags.AllianceMember) != 0 || (battleChara.StatusFlags & StatusFlags.PartyMember) != 0) {
@@ -65,7 +65,7 @@ namespace FoxTweaks.Windows {
         if (!_miniMapService.IsLocked) {
           relativePersonPos = Vector2.Transform(relativePersonPos, Matrix3x2.CreateRotation(_miniMapService.Rotation));
         }
-        
+
         var personCirclePos = playerCirclePos - relativePersonPos;
 
         float distance = Vector2.Distance(playerCirclePos, personCirclePos);
@@ -76,9 +76,9 @@ namespace FoxTweaks.Windows {
           originToObject *= minimapRadius / distance;
           personCirclePos = playerCirclePos + originToObject;
         }
-        
+
         drawList.AddCircleFilled(personCirclePos, 6f, _circleColor);
-        drawList.AddCircle(personCirclePos, 6f, _borderColor , 0, 2);
+        drawList.AddCircle(personCirclePos, 6f, _borderColor, 0, 2);
       }
     }
   }

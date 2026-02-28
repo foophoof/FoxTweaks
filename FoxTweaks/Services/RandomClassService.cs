@@ -20,9 +20,9 @@ namespace FoxTweaks.Services {
       Melee = 3,
       PhysicalRanged = 4,
       MagicalRanged = 5,
-      BarrierHealer = 6,
+      BarrierHealer = 6
     }
-    
+
     private readonly Random _random = new();
 
     public Task StartAsync(CancellationToken cancellationToken) {
@@ -56,16 +56,16 @@ namespace FoxTweaks.Services {
         pluginLog.Debug($"rndc: couldn't find gearset for job {classJob.Name}");
         return;
       }
-      
+
       chatGui.Print($"[FoxTweaks] Picked {classJob.Name}, gearset {gearsetEntry.Value.NameString}");
       EquipGearSet(gearsetEntry.Value);
     }
 
     private IEnumerable<ClassJob> GetRolesToRoll(string rolesToInclude) {
       var enumerable = Enumerable.Empty<ClassJob>();
-      
+
       rolesToInclude = rolesToInclude.Trim();
-      
+
       if (rolesToInclude.Contains('t') || rolesToInclude.Length == 0) {
         enumerable = enumerable.Concat(GetTanks());
       }
@@ -114,13 +114,13 @@ namespace FoxTweaks.Services {
 
     private void EquipGearSet(RaptureGearsetModule.GearsetEntry gearsetEntry) {
       pluginLog.Debug($"equipping gearset {gearsetEntry.Id}");
-      
+
       unsafe {
         var gearsetModule = GetRaptureGearsetModule();
         if (gearsetModule is null) {
           return;
         }
-        
+
         if (!gearsetModule->IsValidGearset(gearsetEntry.Id)) {
           pluginLog.Error($"gearset ID {gearsetEntry.Id} is not valid");
           return;
@@ -144,7 +144,7 @@ namespace FoxTweaks.Services {
         pluginLog.Error("UIModule->GetRaptureGearsetModule is null");
         return null;
       }
-      
+
       return gearsetModule;
     }
   }

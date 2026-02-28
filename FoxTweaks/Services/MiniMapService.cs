@@ -29,24 +29,24 @@ namespace FoxTweaks.Services {
 
     public Vector2 MapPos => NaviMapAddon.Position;
     public Vector2 MapSize => new(218 * NaviScale, 218 * NaviScale);
-    
+
     public Vector2 PlayerCirclePos => new(NaviMapAddon.X + MapSize.X / 2, NaviMapAddon.Y + MapSize.Y / 2);
 
     public float MinimapScale => ZoneScale * NaviScale * Zoom;
-    
+
     public Task StartAsync(CancellationToken cancellationToken) {
       clientState.MapIdChanged += ClientStateOnMapIdChanged;
       ClientStateOnMapIdChanged(clientState.MapId);
-      
+
       framework.Update += FrameworkOnUpdate;
-      
+
       return Task.CompletedTask;
     }
 
     public Task StopAsync(CancellationToken cancellationToken) {
       clientState.MapIdChanged -= ClientStateOnMapIdChanged;
       framework.Update -= FrameworkOnUpdate;
-      
+
       return Task.CompletedTask;
     }
 
@@ -74,15 +74,17 @@ namespace FoxTweaks.Services {
 
       IsVisible = true;
       NaviScale = naviMapAddon.Scale;
-      
+
       UpdateZoom(naviMapAddon);
       UpdateRotation(naviMapAddon);
       UpdateIsLocked(naviMapAddon);
     }
 
     private unsafe void UpdateZoom(AtkUnitBasePtr naviMapAddon) {
-      if (naviMapAddon.IsNull) return;
-      
+      if (naviMapAddon.IsNull) {
+        return;
+      }
+
       try {
         var addonBase = (AtkUnitBase*)naviMapAddon.Address;
         var baseComponent = addonBase->GetComponentByNodeId(18);
@@ -103,8 +105,10 @@ namespace FoxTweaks.Services {
     }
 
     private unsafe void UpdateRotation(AtkUnitBasePtr naviMapAddon) {
-      if (naviMapAddon.IsNull) return;
-      
+      if (naviMapAddon.IsNull) {
+        return;
+      }
+
       try {
         var addonBase = (AtkUnitBase*)naviMapAddon.Address;
         var frameNode = addonBase->GetNodeById(8);
@@ -120,7 +124,9 @@ namespace FoxTweaks.Services {
     }
 
     private unsafe void UpdateIsLocked(AtkUnitBasePtr naviMapAddon) {
-      if (naviMapAddon.IsNull) return;
+      if (naviMapAddon.IsNull) {
+        return;
+      }
 
       try {
         var addonBase = (AtkUnitBase*)naviMapAddon.Address;

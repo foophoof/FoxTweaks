@@ -53,7 +53,7 @@ namespace FoxTweaks {
           .AsImplementedInterfaces();
 
       containerBuilder.Register(c => c.Resolve<IDataManager>().GameData).SingleInstance();
-      
+
       // Sheets
       containerBuilder.RegisterGeneric((context, parameters) => {
         var gameData = context.Resolve<GameData>();

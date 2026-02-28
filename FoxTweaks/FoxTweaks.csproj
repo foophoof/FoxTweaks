@@ -11,6 +11,6 @@
 
     <ItemGroup>
         <PackageReference Include="DalaMock.Host" Version="4.1.1"/>
-        <PackageReference Include="ZLinq" Version="1.5.5" />
+        <PackageReference Include="ZLinq" Version="1.5.5"/>
     </ItemGroup>
 </Project>
