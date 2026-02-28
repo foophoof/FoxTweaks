@@ -4,6 +4,8 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Dalamud.Game.Command;
+using Dalamud.Game.Text;
+using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.UI;
 using FFXIVClientStructs.FFXIV.Client.UI.Misc;
@@ -57,7 +59,10 @@ namespace FoxTweaks.Services {
         return;
       }
 
-      chatGui.Print($"[FoxTweaks] Picked {classJob.Name}, gearset {gearsetEntry.Value.NameString}");
+      chatGui.Print(new XivChatEntry {
+        Type = XivChatType.Echo,
+        Message = new SeStringBuilder().AddUiForeground("[FoxTweaks] ", 45).Append($"Picked {classJob.Name}, gearset {gearsetEntry.Value.NameString}").BuiltString
+      });
       EquipGearSet(gearsetEntry.Value);
     }
 
