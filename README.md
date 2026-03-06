@@ -10,6 +10,9 @@ any features I did not use, and mostly do configuration hard coded in the
 code), I don't ever plan on releasing this as an actual plugin, but I've made
 the source code available in case someone finds parts of it useful.
 
+If you have any questions, feel free to ping me on Discord, my username there
+is the same as my GitHub username.
+
 ## Acknowledgements
 
 Thanks to [Critical-Impact](https://github.com/Critical-Impact/) for making
