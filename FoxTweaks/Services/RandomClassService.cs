@@ -15,7 +15,7 @@ using Microsoft.Extensions.Hosting;
 using ZLinq;
 
 namespace FoxTweaks.Services {
-  public class RandomClassService(ICommandManager commandManager, IPluginLog pluginLog, IChatGui chatGui, ExcelSheet<ClassJob> classJobs) : IHostedService {
+  public class RandomClassService(ICommandManager commandManager, IPluginLog pluginLog, IChatGui chatGui, ExcelSheet<ClassJob> classJobs, IPlayerState playerState) : IHostedService {
     private enum JobType : byte {
       Tank = 1,
       PureHealer = 2,
@@ -85,21 +85,24 @@ namespace FoxTweaks.Services {
     }
 
     private IEnumerable<ClassJob> GetTanks() {
-      return classJobs
-          .Where(c => (JobType)c.JobType == JobType.Tank)
-          .Where(c => !c.IsLimitedJob);
+      return GetValidJobs()
+          .Where(c => (JobType)c.JobType == JobType.Tank);
     }
 
     private IEnumerable<ClassJob> GetHealers() {
-      return classJobs
-          .Where(c => (JobType)c.JobType is JobType.PureHealer or JobType.BarrierHealer)
-          .Where(c => !c.IsLimitedJob);
+      return GetValidJobs()
+          .Where(c => (JobType)c.JobType is JobType.PureHealer or JobType.BarrierHealer);
     }
 
     private IEnumerable<ClassJob> GetDps() {
+      return GetValidJobs()
+          .Where(c => (JobType)c.JobType is JobType.Melee or JobType.PhysicalRanged or JobType.MagicalRanged);
+    }
+
+    private IEnumerable<ClassJob> GetValidJobs() {
       return classJobs
-          .Where(c => (JobType)c.JobType is JobType.Melee or JobType.PhysicalRanged or JobType.MagicalRanged)
-          .Where(c => !c.IsLimitedJob);
+          .Where(c => !c.IsLimitedJob)
+          .Where(c => playerState.ClassJob.RowId != c.RowId);
     }
 
     private RaptureGearsetModule.GearsetEntry? HighestGearsetForClassJob(ClassJob classJob) {

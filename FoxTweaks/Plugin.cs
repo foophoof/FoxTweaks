@@ -22,8 +22,9 @@ namespace FoxTweaks {
         IDtrBar dtrBar,
         IGameGui gameGui,
         IClientState clientState,
+        IPlayerState playerState,
         IObjectTable objectTable)
-        : base(pluginInterface, pluginLog, framework, commandManager, dataManager, textureProvider, chatGui, dtrBar, gameGui, clientState, objectTable) {
+        : base(pluginInterface, pluginLog, framework, commandManager, dataManager, textureProvider, chatGui, dtrBar, gameGui, clientState, playerState, objectTable) {
       CreateHost();
       Start();
     }
