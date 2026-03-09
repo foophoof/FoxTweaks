@@ -27,7 +27,6 @@ namespace FoxTweaks.Services {
     private readonly uint _borderColor = ImGui.ColorConvertFloat4ToU32(new Vector4(0.957f, 0.533f, 0.051f, 1) * 0.7f);
 
     public Task StartAsync(CancellationToken cancellationToken) {
-
       framework.Update += FrameworkOnUpdate;
       uiBuilder.Draw += UiBuilderOnDraw;
 
@@ -99,13 +98,13 @@ namespace FoxTweaks.Services {
         return;
       }
 
-      var playerMapCoordinates = Vector2.Create(player.Position.X, player.Position.Z);
+      var playerCoordinates = Vector2.Create(player.Position.X, player.Position.Z);
       var rotationMatrix = Matrix3x2.Identity;
       if (!isLocked) {
         rotationMatrix = Matrix3x2.CreateRotation(rotation);
       }
 
-      var friends = objectTable.PlayerObjects.AsValueEnumerable(); //.Where(c => (c.StatusFlags & StatusFlags.Friend) != 0);
+      var friends = objectTable.PlayerObjects.AsValueEnumerable().Where(c => (c.StatusFlags & StatusFlags.Friend) != 0);
       foreach (var battleChara in friends) {
         if ((battleChara.StatusFlags & StatusFlags.AllianceMember) != 0 || (battleChara.StatusFlags & StatusFlags.PartyMember) != 0) {
           continue;
@@ -114,23 +113,22 @@ namespace FoxTweaks.Services {
           continue;
         }
 
-        var bcMapCoords = Vector2.Create(battleChara.Position.X, battleChara.Position.Z);
+        var battleCharaCoordinates = Vector2.Create(battleChara.Position.X, battleChara.Position.Z);
 
-        var bcOffset = Vector2.Create(bcMapCoords.X, bcMapCoords.Y) - Vector2.Create(playerMapCoordinates.X, playerMapCoordinates.Y);
+        var battleCharaOffset = battleCharaCoordinates - playerCoordinates;
 
-        bcOffset *= zoom * addonNaviMapScale;
+        battleCharaOffset *= zoom * addonNaviMapScale;
 
         float maxRadius = 66f * addonNaviMapScale;
-        if (bcOffset.LengthSquared() > maxRadius * maxRadius) {
-          bcOffset = bcOffset / bcOffset.Length() * maxRadius;
+        if (battleCharaOffset.Length() > maxRadius) {
+          battleCharaOffset = battleCharaOffset / battleCharaOffset.Length() * maxRadius;
         }
 
         if (!isLocked) {
-          bcOffset = Vector2.Transform(bcOffset, rotationMatrix);
+          battleCharaOffset = Vector2.Transform(battleCharaOffset, rotationMatrix);
         }
-
-        var personCirclePos = origin + bcOffset;
-        _circlePositions.Enqueue(personCirclePos);
+        
+        _circlePositions.Enqueue(origin + battleCharaOffset);
       }
     }
   }
