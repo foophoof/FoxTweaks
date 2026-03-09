@@ -54,7 +54,7 @@ public class RandomClassService(ICommandManager commandManager, IPluginLog plugi
         var roles = GetRolesToRoll(arguments).ToList();
         if (roles.Count == 0)
         {
-            chatGui.PrintError("[FoxTweaks] /rndc: No roles picked");
+            chatGui.PrintError("/rndc: No roles picked", "FoxTweaks", 45);
             return;
         }
 
@@ -68,11 +68,7 @@ public class RandomClassService(ICommandManager commandManager, IPluginLog plugi
             return;
         }
 
-        chatGui.Print(
-            new XivChatEntry
-            {
-                Type = XivChatType.Echo, Message = new SeStringBuilder().AddUiForeground("[FoxTweaks] ", 45).Append($"Picked {classJob.Name}, gearset {gearsetEntry.Value.NameString}").BuiltString,
-            });
+        chatGui.Print($"Picked {classJob.Name}, gearset {gearsetEntry.Value.NameString}", "FoxTweaks", 45);
         EquipGearSet(gearsetEntry.Value);
     }
 
