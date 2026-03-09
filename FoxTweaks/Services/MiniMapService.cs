@@ -9,7 +9,6 @@ using Dalamud.Game.ClientState.Objects.Enums;
 using Dalamud.Interface;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.UI;
-using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using Lumina.Excel;
 using Lumina.Excel.Sheets;
@@ -23,10 +22,13 @@ namespace FoxTweaks.Services
         IFramework framework,
         IPluginLog pluginLog,
         IUiBuilder uiBuilder,
-        IObjectTable objectTable
+        IObjectTable objectTable,
+        IClientState clientState,
+        ExcelSheet<Map> maps
     ) : IHostedService
     {
         private bool _miniMapVisible;
+        private float _mapSizeFactor = 1f;
         private readonly Queue<Vector2> _circlePositions = new();
 
         private readonly uint _circleColor = ImGui.ColorConvertFloat4ToU32(new Vector4(0.957f, 0.533f, 0.051f, 1));
@@ -36,6 +38,13 @@ namespace FoxTweaks.Services
         {
             framework.Update += FrameworkOnUpdate;
             uiBuilder.Draw += UiBuilderOnDraw;
+            clientState.MapIdChanged += ClientStateOnMapIdChanged;
+
+            framework.RunOnFrameworkThread(
+                () =>
+                {
+                    ClientStateOnMapIdChanged(clientState.MapId);
+                });
 
             return Task.CompletedTask;
         }
@@ -44,6 +53,7 @@ namespace FoxTweaks.Services
         {
             framework.Update -= FrameworkOnUpdate;
             uiBuilder.Draw -= UiBuilderOnDraw;
+            clientState.MapIdChanged -= ClientStateOnMapIdChanged;
 
             return Task.CompletedTask;
         }
@@ -81,12 +91,6 @@ namespace FoxTweaks.Services
                     return;
                 }
 
-                var agentMap = AgentMap.Instance();
-                if (agentMap is null)
-                {
-                    return;
-                }
-
                 var origin = Vector2.Create(
                     naviMap->X + (foxNaviMap->MapImage->X + foxNaviMap->MapImage->OriginX + foxNaviMap->MapBase->X) * naviMap->Scale,
                     naviMap->Y + (foxNaviMap->MapImage->Y + foxNaviMap->MapImage->OriginY + foxNaviMap->MapBase->Y) * naviMap->Scale
@@ -112,7 +116,7 @@ namespace FoxTweaks.Services
                 foreach (var battleChara in friends)
                 {
                     var battleCharaCoordinates = Vector2.Create(battleChara.Position.X, battleChara.Position.Z);
-                    var battleCharaOffset = ClampVectorLength((battleCharaCoordinates - playerCoordinates) * (foxNaviMap->Atk2DNaviMap.MarkerPositionScaling * agentMap->CurrentMapSizeFactorFloat) * naviMap->Scale, 66f * naviMap->Scale);
+                    var battleCharaOffset = ClampVectorLength((battleCharaCoordinates - playerCoordinates) * (foxNaviMap->Atk2DNaviMap.MarkerPositionScaling * _mapSizeFactor) * naviMap->Scale, 66f * naviMap->Scale);
 
                     if (!foxNaviMap->Atk2DNaviMap.NorthLockedUp)
                     {
@@ -126,6 +130,12 @@ namespace FoxTweaks.Services
             {
                 pluginLog.Verbose(e, "exception in MiniMapService.FrameworkOnUpdate");
             }
+        }
+
+        private void ClientStateOnMapIdChanged(uint mapId)
+        {
+            var map = maps.GetRowOrDefault(mapId);
+            _mapSizeFactor = map?.SizeFactor / 100f ?? 1f;
         }
 
         private static Vector2 ClampVectorLength(Vector2 vector, float maxLength)
