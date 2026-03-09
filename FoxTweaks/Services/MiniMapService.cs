@@ -1,47 +1,32 @@
 using System;
+using System.Collections.Generic;
 using System.Numerics;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Game.ClientState.Objects.Enums;
-using Dalamud.Game.NativeWrapper;
 using Dalamud.Interface;
 using Dalamud.Plugin.Services;
+using FFXIVClientStructs.FFXIV.Client.UI;
+using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using FFXIVClientStructs.FFXIV.Component.GUI;
-using Lumina.Excel;
-using Lumina.Excel.Sheets;
 using Microsoft.Extensions.Hosting;
 using ZLinq;
 
 namespace FoxTweaks.Services {
   public class MiniMapService(IGameGui gameGui,
-                              ExcelSheet<Map> maps,
-                              IClientState clientState,
                               IFramework framework,
                               IPluginLog pluginLog,
                               IUiBuilder uiBuilder,
                               IObjectTable objectTable) : IHostedService {
-    private AtkUnitBasePtr NaviMapAddon => gameGui.GetAddonByName("_NaviMap");
-    private Map? _currentMap = null;
-
-    private float ZoneScale { get; set; } = 1f;
-    private float NaviScale { get; set; } = 1f;
-    private float Zoom { get; set; } = 1f;
-    private float Rotation { get; set; }
-    public bool IsVisible { get; private set; }
-    private bool IsLocked { get; set; }
-    private Vector2 MapPos { get; set; }
-    private Vector2 MapSize { get; set; }
-    private Vector2 PlayerCirclePos { get; set; }
-
-    public float MinimapScale => ZoneScale * NaviScale * Zoom;
+    private bool _miniMapVisible;
+    private readonly Queue<Vector2> _circlePositions = new();
 
     private readonly uint _circleColor = ImGui.ColorConvertFloat4ToU32(new Vector4(0.957f, 0.533f, 0.051f, 1));
     private readonly uint _borderColor = ImGui.ColorConvertFloat4ToU32(new Vector4(0.957f, 0.533f, 0.051f, 1) * 0.7f);
 
     public Task StartAsync(CancellationToken cancellationToken) {
-      clientState.MapIdChanged += ClientStateOnMapIdChanged;
-      ClientStateOnMapIdChanged(clientState.MapId);
 
       framework.Update += FrameworkOnUpdate;
       uiBuilder.Draw += UiBuilderOnDraw;
@@ -50,7 +35,6 @@ namespace FoxTweaks.Services {
     }
 
     public Task StopAsync(CancellationToken cancellationToken) {
-      clientState.MapIdChanged -= ClientStateOnMapIdChanged;
       framework.Update -= FrameworkOnUpdate;
       uiBuilder.Draw -= UiBuilderOnDraw;
 
@@ -58,148 +42,110 @@ namespace FoxTweaks.Services {
     }
 
     private void UiBuilderOnDraw() {
-      if (!IsVisible) {
+      if (!_miniMapVisible) {
         return;
       }
 
       var drawList = ImGui.GetForegroundDrawList();
-      var windowPos = ImGui.GetWindowViewport().Pos;
+      while (_circlePositions.TryDequeue(out var personCirclePos)) {
+        drawList.AddCircleFilled(personCirclePos, 2f, _circleColor);
+        drawList.AddCircle(personCirclePos, 3f, _borderColor, 0, 2);
+      }
+    }
+
+    private void FrameworkOnUpdate(IFramework _) {
+      var origin = Vector2.Zero;
+      bool isLocked = false;
+      float rotation = 0f;
+      float zoom = 1f;
+
+      unsafe {
+        try {
+          var naviMap = gameGui.GetAddonByName<AddonNaviMap>("_NaviMap");
+          if (naviMap is null) {
+            return;
+          }
+
+          var foxNaviMap = (FoxAddonNaviMap*)naviMap;
+
+          _miniMapVisible = naviMap->IsVisible;
+          if (!_miniMapVisible) {
+            return;
+          }
+
+          var agentMap = AgentMap.Instance();
+          if (agentMap is null) {
+            return;
+          }
+
+          origin = Vector2.Create(
+              foxNaviMap->MapImage->X + foxNaviMap->MapImage->OriginX + foxNaviMap->MapBase->X + naviMap->X,
+              foxNaviMap->MapImage->Y + foxNaviMap->MapImage->OriginY + foxNaviMap->MapBase->Y + naviMap->Y
+          );
+          isLocked = foxNaviMap->Atk2DNaviMap.NorthLockedUp;
+          rotation = float.DegreesToRadians(foxNaviMap->Atk2DNaviMap.PlayerConeRotation);
+          zoom = foxNaviMap->Atk2DNaviMap.MarkerPositionScaling * agentMap->CurrentMapSizeFactorFloat;
+        }
+        catch (Exception e) {
+          pluginLog.Verbose(e, "exception in MiniMapService.FrameworkOnUpdate");
+        }
+      }
 
       var player = objectTable.LocalPlayer;
       if (player is null) {
         return;
       }
 
-      var playerCirclePos = PlayerCirclePos + windowPos;
-      playerCirclePos.Y -= 5f;
+      var playerMapCoordinates = Vector2.Create(player.Position.X, player.Position.Z);
+      var rotationMatrix = Matrix3x2.Identity;
+      if (!isLocked) {
+        rotationMatrix = Matrix3x2.CreateRotation(rotation);
+      }
 
       var friends = objectTable.PlayerObjects.AsValueEnumerable(); //.Where(c => (c.StatusFlags & StatusFlags.Friend) != 0);
       foreach (var battleChara in friends) {
         if ((battleChara.StatusFlags & StatusFlags.AllianceMember) != 0 || (battleChara.StatusFlags & StatusFlags.PartyMember) != 0) {
           continue;
         }
-
-        var relativePersonPos = new Vector2(player.Position.X, player.Position.Z) - new Vector2(battleChara.Position.X, battleChara.Position.Z);
-        relativePersonPos *= MinimapScale;
-
-        if (!IsLocked) {
-          relativePersonPos = Vector2.Transform(relativePersonPos, Matrix3x2.CreateRotation(Rotation));
+        if (battleChara == player) {
+          continue;
         }
 
-        var personCirclePos = playerCirclePos - relativePersonPos;
+        var bcMapCoords = Vector2.Create(battleChara.Position.X, battleChara.Position.Z);
 
-        float distance = Vector2.Distance(playerCirclePos, personCirclePos);
+        var bcOffset = Vector2.Create(bcMapCoords.X, bcMapCoords.Y) - Vector2.Create(playerMapCoordinates.X, playerMapCoordinates.Y);
 
-        float minimapRadius = MapSize.X * 0.315f;
-        if (distance > minimapRadius) {
-          var originToObject = personCirclePos - playerCirclePos;
-          originToObject *= minimapRadius / distance;
-          personCirclePos = playerCirclePos + originToObject;
+        bcOffset *= zoom;
+
+        const float maxRadius = 66f;
+        if (bcOffset.LengthSquared() > maxRadius * maxRadius) {
+          bcOffset = bcOffset / bcOffset.Length() * maxRadius;
         }
 
-        drawList.AddCircleFilled(personCirclePos, 6f, _circleColor);
-        drawList.AddCircle(personCirclePos, 6f, _borderColor, 0, 2);
-      }
-    }
-
-    private void ClientStateOnMapIdChanged(uint mapId) {
-      if (mapId == 0) {
-        return;
-      }
-      _currentMap = maps.GetRow(mapId);
-      ushort sizeFactor = _currentMap?.SizeFactor ?? 100;
-      ZoneScale = sizeFactor / 100f;
-    }
-
-    private void FrameworkOnUpdate(IFramework _) {
-      var naviMapAddon = gameGui.GetAddonByName("_NaviMap");
-      if (naviMapAddon.IsNull) {
-        return;
-      }
-      if (!naviMapAddon.IsReady) {
-        return;
-      }
-      if (!naviMapAddon.IsVisible) {
-        IsVisible = false;
-        return;
-      }
-
-      IsVisible = true;
-      NaviScale = naviMapAddon.Scale;
-      MapSize = new Vector2(218, 218) * NaviScale;
-      MapPos = naviMapAddon.Position;
-      PlayerCirclePos = MapPos + MapSize / 2;
-
-      UpdateZoom(naviMapAddon);
-      UpdateRotation(naviMapAddon);
-      UpdateIsLocked(naviMapAddon);
-    }
-
-    private unsafe void UpdateZoom(AtkUnitBasePtr naviMapAddon) {
-      if (naviMapAddon.IsNull) {
-        return;
-      }
-
-      try {
-        var addonBase = (AtkUnitBase*)naviMapAddon.Address;
-        var baseComponent = addonBase->GetComponentByNodeId(18);
-        if (baseComponent is null) {
-          return;
+        if (!isLocked) {
+          bcOffset = Vector2.Transform(bcOffset, rotationMatrix);
         }
 
-        var imageNode = baseComponent->GetImageNodeById(6);
-        if (imageNode is null) {
-          return;
-        }
-
-        Zoom = imageNode->ScaleX;
-      }
-      catch (Exception e) {
-        pluginLog.Verbose(e, "exception in MiniMapService.UpdateZoom");
-      }
-    }
-
-    private unsafe void UpdateRotation(AtkUnitBasePtr naviMapAddon) {
-      if (naviMapAddon.IsNull) {
-        return;
-      }
-
-      try {
-        var addonBase = (AtkUnitBase*)naviMapAddon.Address;
-        var frameNode = addonBase->GetNodeById(8);
-        if (frameNode is null) {
-          return;
-        }
-
-        Rotation = frameNode->Rotation;
-      }
-      catch (Exception e) {
-        pluginLog.Verbose(e, "exception in MiniMapService.UpdateRotation");
-      }
-    }
-
-    private unsafe void UpdateIsLocked(AtkUnitBasePtr naviMapAddon) {
-      if (naviMapAddon.IsNull) {
-        return;
-      }
-
-      try {
-        var addonBase = (AtkUnitBase*)naviMapAddon.Address;
-        var lockNode = addonBase->GetNodeById(4);
-        if (lockNode is null) {
-          return;
-        }
-
-        var lockCheckbox = lockNode->GetAsAtkComponentCheckBox();
-        if (lockCheckbox is null) {
-          return;
-        }
-
-        IsLocked = lockCheckbox->IsChecked;
-      }
-      catch (Exception e) {
-        pluginLog.Verbose(e, "exception in MiniMapService.UpdateIsLocked");
+        var personCirclePos = origin + bcOffset;
+        _circlePositions.Enqueue(personCirclePos);
       }
     }
   }
 }
+
+[StructLayout(LayoutKind.Explicit, Size = 0x3A90)]
+internal unsafe struct FoxAddonNaviMap {
+  [FieldOffset(0x238)] public FoxAtk2DNaviMap Atk2DNaviMap;
+  [FieldOffset(0x15D8)] public AtkComponentNode* MapBase;
+  [FieldOffset(0x15E0)] public AtkImageNode* MapImage;
+  [FieldOffset(0x15F0)] public AtkImageNode* Mask;
+  [FieldOffset(0x3A78)] public float MarkerPositionScaling;
+}
+
+[StructLayout(LayoutKind.Explicit, Size = 0x134D)]
+internal unsafe struct FoxAtk2DNaviMap {
+  [FieldOffset(0x28)] public float MarkerRadiusScale;
+  [FieldOffset(0x2C)] public float MarkerPositionScaling;
+  [FieldOffset(0x34)] public float PlayerConeRotation;
+  [FieldOffset(0x134C)] public bool NorthLockedUp;
+};
