@@ -58,6 +58,7 @@ namespace FoxTweaks.Services {
       bool isLocked = false;
       float rotation = 0f;
       float zoom = 1f;
+      float addonNaviMapScale = 1f;
 
       unsafe {
         try {
@@ -78,13 +79,15 @@ namespace FoxTweaks.Services {
             return;
           }
 
+          addonNaviMapScale = naviMap->Scale;
           origin = Vector2.Create(
-              foxNaviMap->MapImage->X + foxNaviMap->MapImage->OriginX + foxNaviMap->MapBase->X + naviMap->X,
-              foxNaviMap->MapImage->Y + foxNaviMap->MapImage->OriginY + foxNaviMap->MapBase->Y + naviMap->Y
+              naviMap->X + (foxNaviMap->MapImage->X + foxNaviMap->MapImage->OriginX + foxNaviMap->MapBase->X) * addonNaviMapScale,
+              naviMap->Y + (foxNaviMap->MapImage->Y + foxNaviMap->MapImage->OriginY + foxNaviMap->MapBase->Y) * addonNaviMapScale
           );
           isLocked = foxNaviMap->Atk2DNaviMap.NorthLockedUp;
           rotation = float.DegreesToRadians(foxNaviMap->Atk2DNaviMap.PlayerConeRotation);
           zoom = foxNaviMap->Atk2DNaviMap.MarkerPositionScaling * agentMap->CurrentMapSizeFactorFloat;
+          addonNaviMapScale = naviMap->Scale;
         }
         catch (Exception e) {
           pluginLog.Verbose(e, "exception in MiniMapService.FrameworkOnUpdate");
@@ -102,7 +105,7 @@ namespace FoxTweaks.Services {
         rotationMatrix = Matrix3x2.CreateRotation(rotation);
       }
 
-      var friends = objectTable.PlayerObjects.AsValueEnumerable().Where(c => (c.StatusFlags & StatusFlags.Friend) != 0);
+      var friends = objectTable.PlayerObjects.AsValueEnumerable(); //.Where(c => (c.StatusFlags & StatusFlags.Friend) != 0);
       foreach (var battleChara in friends) {
         if ((battleChara.StatusFlags & StatusFlags.AllianceMember) != 0 || (battleChara.StatusFlags & StatusFlags.PartyMember) != 0) {
           continue;
@@ -115,9 +118,9 @@ namespace FoxTweaks.Services {
 
         var bcOffset = Vector2.Create(bcMapCoords.X, bcMapCoords.Y) - Vector2.Create(playerMapCoordinates.X, playerMapCoordinates.Y);
 
-        bcOffset *= zoom;
+        bcOffset *= zoom * addonNaviMapScale;
 
-        const float maxRadius = 66f;
+        float maxRadius = 66f * addonNaviMapScale;
         if (bcOffset.LengthSquared() > maxRadius * maxRadius) {
           bcOffset = bcOffset / bcOffset.Length() * maxRadius;
         }
