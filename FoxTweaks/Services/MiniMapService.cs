@@ -102,7 +102,7 @@ namespace FoxTweaks.Services {
         rotationMatrix = Matrix3x2.CreateRotation(rotation);
       }
 
-      var friends = objectTable.PlayerObjects.AsValueEnumerable(); //.Where(c => (c.StatusFlags & StatusFlags.Friend) != 0);
+      var friends = objectTable.PlayerObjects.AsValueEnumerable().Where(c => (c.StatusFlags & StatusFlags.Friend) != 0);
       foreach (var battleChara in friends) {
         if ((battleChara.StatusFlags & StatusFlags.AllianceMember) != 0 || (battleChara.StatusFlags & StatusFlags.PartyMember) != 0) {
           continue;
