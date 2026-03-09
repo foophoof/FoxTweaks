@@ -104,32 +104,29 @@ namespace FoxTweaks.Services {
         rotationMatrix = Matrix3x2.CreateRotation(rotation);
       }
 
-      var friends = objectTable.PlayerObjects.AsValueEnumerable().Where(c => (c.StatusFlags & StatusFlags.Friend) != 0);
+      var friends = objectTable.PlayerObjects.AsValueEnumerable()
+          .Where(c => (c.StatusFlags & StatusFlags.Friend) != 0)
+          .Where(c => (c.StatusFlags & StatusFlags.AllianceMember) == 0)
+          .Where(c => (c.StatusFlags & StatusFlags.PartyMember) == 0);
       foreach (var battleChara in friends) {
-        if ((battleChara.StatusFlags & StatusFlags.AllianceMember) != 0 || (battleChara.StatusFlags & StatusFlags.PartyMember) != 0) {
-          continue;
-        }
-        if (battleChara == player) {
-          continue;
-        }
-
         var battleCharaCoordinates = Vector2.Create(battleChara.Position.X, battleChara.Position.Z);
-
-        var battleCharaOffset = battleCharaCoordinates - playerCoordinates;
-
-        battleCharaOffset *= zoom * addonNaviMapScale;
-
-        float maxRadius = 66f * addonNaviMapScale;
-        if (battleCharaOffset.Length() > maxRadius) {
-          battleCharaOffset = battleCharaOffset / battleCharaOffset.Length() * maxRadius;
-        }
+        var battleCharaOffset = ClampVectorLength((battleCharaCoordinates - playerCoordinates) * zoom * addonNaviMapScale, 66f * addonNaviMapScale);
 
         if (!isLocked) {
           battleCharaOffset = Vector2.Transform(battleCharaOffset, rotationMatrix);
         }
-        
+
         _circlePositions.Enqueue(origin + battleCharaOffset);
       }
+    }
+
+    private static Vector2 ClampVectorLength(Vector2 vector, float maxLength) {
+      float length = vector.Length();
+      if (length > maxLength) {
+        return vector / length * maxLength;
+      }
+
+      return vector;
     }
   }
 }
