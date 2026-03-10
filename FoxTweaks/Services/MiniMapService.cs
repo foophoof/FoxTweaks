@@ -61,7 +61,7 @@ public class MiniMapService(
             return;
         }
 
-        var drawList = ImGui.GetForegroundDrawList();
+        var drawList = ImGui.GetBackgroundDrawList();
         while (_circlePositions.TryDequeue(out var personCirclePos))
         {
             drawList.AddCircleFilled(personCirclePos, 2f, _circleColor);
