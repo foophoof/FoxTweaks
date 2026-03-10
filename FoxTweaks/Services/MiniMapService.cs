@@ -9,9 +9,8 @@ using Dalamud.Game.ClientState.Objects.Enums;
 using Dalamud.Interface;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.UI;
+using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using FFXIVClientStructs.FFXIV.Component.GUI;
-using Lumina.Excel;
-using Lumina.Excel.Sheets;
 using Microsoft.Extensions.Hosting;
 using ZLinq;
 
@@ -23,8 +22,7 @@ namespace FoxTweaks.Services
         IPluginLog pluginLog,
         IUiBuilder uiBuilder,
         IObjectTable objectTable,
-        IClientState clientState,
-        ExcelSheet<Map> maps
+        IClientState clientState
     ) : IHostedService
     {
         private bool _miniMapVisible;
@@ -132,10 +130,17 @@ namespace FoxTweaks.Services
             }
         }
 
-        private void ClientStateOnMapIdChanged(uint mapId)
+        private unsafe void ClientStateOnMapIdChanged(uint mapId)
         {
-            var map = maps.GetRowOrDefault(mapId);
-            _mapSizeFactor = map?.SizeFactor / 100f ?? 1f;
+            var agentMap = AgentMap.Instance();
+            if (agentMap is null)
+            {
+                pluginLog.Warning("MinimapService.ClientStateOnMapIdChanged: AgentMap is null");
+                _mapSizeFactor = 1f;
+                return;
+            }
+
+            _mapSizeFactor = agentMap->CurrentMapSizeFactorFloat;
         }
 
         private static Vector2 ClampVectorLength(Vector2 vector, float maxLength)
