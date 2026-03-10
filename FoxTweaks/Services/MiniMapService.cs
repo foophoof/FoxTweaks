@@ -1,5 +1,4 @@
 using Dalamud.Bindings.ImGui;
-using Dalamud.Game.Addon.Events;
 using Dalamud.Game.ClientState.Objects.Enums;
 using Dalamud.Interface;
 using Dalamud.Plugin.Services;
@@ -11,7 +10,6 @@ using System.Collections.Generic;
 using System.Numerics;
 using System.Threading;
 using System.Threading.Tasks;
-using ZLinq;
 
 namespace FoxTweaks.Services;
 
@@ -94,8 +92,8 @@ public class MiniMapService(
         _mapSizeFactor = agentMap->CurrentMapSizeFactorFloat;
     }
 
-    private unsafe void EnqueueCircles() {
-
+    private unsafe void EnqueueCircles()
+    {
         var naviMap = gameGui.GetAddonByName<AddonNaviMap>("_NaviMap");
         if (naviMap is null)
         {
