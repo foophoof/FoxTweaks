@@ -1,5 +1,6 @@
 using System;
 using DalaMock.Host.Mediator;
+using Lumina.Excel.Sheets;
 
 namespace FoxTweaks.Mediator;
 
@@ -20,3 +21,9 @@ public record OpenWindowMessage(Type WindowType) : MessageBase;
 /// </summary>
 /// <param name="WindowType">The type of the window.</param>
 public record CloseWindowMessage(Type WindowType) : MessageBase;
+
+/// <summary>
+/// Request that a gearset for the matching job is equipped.
+/// </summary>
+/// <param name="ClassJob">The ClassJob to equip a gearset for.</param>
+public record EquipGearsetForJobMessage(ClassJob ClassJob) : MessageBase;

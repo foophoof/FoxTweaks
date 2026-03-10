@@ -45,6 +45,8 @@ public sealed class Plugin : HostedPlugin
     public override void ConfigureContainer(ContainerBuilder containerBuilder)
     {
         // While you can register services in the service collection, as long as you register a service as IHostedService(the AsImplementedInterfaces call) it will automatically be picked up by the host. This also avoids potential double registrations.
+        containerBuilder.RegisterType<GearsetService>().AsSelf().AsImplementedInterfaces().SingleInstance();
+        containerBuilder.RegisterType<JobSwitcherService>().AsSelf().AsImplementedInterfaces().SingleInstance();
         containerBuilder.RegisterType<MiniMapService>().AsSelf().AsImplementedInterfaces().SingleInstance();
         containerBuilder.RegisterType<RandomClassService>().AsSelf().AsImplementedInterfaces().SingleInstance();
 

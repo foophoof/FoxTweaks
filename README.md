@@ -23,3 +23,4 @@ The plugin implements functionality that originated in these plugins:
 
 - [RandomClassSelector](https://github.com/Aida-Enna/RandomClassSelector)
 - [MiniMappingway](https://github.com/jaycewhite/MiniMappingway)
+- [Fast Job Switcher](https://github.com/meoiswa/fast-job-switcher)

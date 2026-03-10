@@ -1,22 +1,19 @@
+using DalaMock.Host.Mediator;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Dalamud.Game.Command;
-using Dalamud.Game.Text;
-using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Plugin.Services;
-using FFXIVClientStructs.FFXIV.Client.UI;
-using FFXIVClientStructs.FFXIV.Client.UI.Misc;
+using FoxTweaks.Mediator;
 using Lumina.Excel;
 using Lumina.Excel.Sheets;
 using Microsoft.Extensions.Hosting;
-using ZLinq;
 
 namespace FoxTweaks.Services;
 
-public class RandomClassService(ICommandManager commandManager, IPluginLog pluginLog, IChatGui chatGui, ExcelSheet<ClassJob> classJobs, IPlayerState playerState) : IHostedService
+public class RandomClassService(ICommandManager commandManager, IPluginLog pluginLog, IChatGui chatGui, ExcelSheet<ClassJob> classJobs, IPlayerState playerState, MediatorService mediatorService) : IHostedService
 {
     private enum JobType : byte
     {
@@ -61,15 +58,7 @@ public class RandomClassService(ICommandManager commandManager, IPluginLog plugi
         var classJob = roles[_random.Next(roles.Count)];
         pluginLog.Debug($"rndc: chose role {classJob.Name}");
 
-        var gearsetEntry = HighestGearsetForClassJob(classJob);
-        if (gearsetEntry is null)
-        {
-            pluginLog.Debug($"rndc: couldn't find gearset for job {classJob.Name}");
-            return;
-        }
-
-        chatGui.Print($"Picked {classJob.Name}, gearset {gearsetEntry.Value.NameString}", "FoxTweaks", 45);
-        EquipGearSet(gearsetEntry.Value);
+        mediatorService.Publish(new EquipGearsetForJobMessage(classJob));
     }
 
     private IEnumerable<ClassJob> GetRolesToRoll(string rolesToInclude)
@@ -117,67 +106,5 @@ public class RandomClassService(ICommandManager commandManager, IPluginLog plugi
         return classJobs
             .Where(c => !c.IsLimitedJob)
             .Where(c => playerState.ClassJob.RowId != c.RowId);
-    }
-
-    private RaptureGearsetModule.GearsetEntry? HighestGearsetForClassJob(ClassJob classJob)
-    {
-        unsafe
-        {
-            var gearsetModule = GetRaptureGearsetModule();
-            if (gearsetModule is null)
-            {
-                return null;
-            }
-
-            return gearsetModule->Entries
-                .AsValueEnumerable()
-                .Where(e => (e.Flags & RaptureGearsetModule.GearsetFlag.Exists) != 0)
-                .Where(e => e.ClassJob == classJob.RowId)
-                .MaxBy(e => e.ItemLevel);
-        }
-    }
-
-    private void EquipGearSet(RaptureGearsetModule.GearsetEntry gearsetEntry)
-    {
-        pluginLog.Debug($"equipping gearset {gearsetEntry.Id}");
-
-        unsafe
-        {
-            var gearsetModule = GetRaptureGearsetModule();
-            if (gearsetModule is null)
-            {
-                return;
-            }
-
-            if (!gearsetModule->IsValidGearset(gearsetEntry.Id))
-            {
-                pluginLog.Error($"gearset ID {gearsetEntry.Id} is not valid");
-                return;
-            }
-
-            if (gearsetModule->EquipGearset(gearsetEntry.Id) != 0)
-            {
-                pluginLog.Error($"equipping gearset {gearsetEntry.Id} failed");
-            }
-        }
-    }
-
-    private unsafe RaptureGearsetModule* GetRaptureGearsetModule()
-    {
-        var uiModule = UIModule.Instance();
-        if (uiModule is null)
-        {
-            pluginLog.Error("UIModule.Instance() is null");
-            return null;
-        }
-
-        var gearsetModule = uiModule->GetRaptureGearsetModule();
-        if (gearsetModule is null)
-        {
-            pluginLog.Error("UIModule->GetRaptureGearsetModule is null");
-            return null;
-        }
-
-        return gearsetModule;
     }
 }
