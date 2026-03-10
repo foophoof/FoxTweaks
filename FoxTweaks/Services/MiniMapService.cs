@@ -10,7 +10,6 @@ using Dalamud.Interface;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.UI;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
-using FFXIVClientStructs.FFXIV.Component.GUI;
 using Microsoft.Extensions.Hosting;
 using ZLinq;
 
@@ -81,8 +80,6 @@ namespace FoxTweaks.Services
                     return;
                 }
 
-                var foxNaviMap = (FoxAddonNaviMap*)naviMap;
-
                 _miniMapVisible = naviMap->IsVisible;
                 if (!_miniMapVisible)
                 {
@@ -90,8 +87,8 @@ namespace FoxTweaks.Services
                 }
 
                 var origin = Vector2.Create(
-                    naviMap->X + (foxNaviMap->MapImage->X + foxNaviMap->MapImage->OriginX + foxNaviMap->MapBase->X) * naviMap->Scale,
-                    naviMap->Y + (foxNaviMap->MapImage->Y + foxNaviMap->MapImage->OriginY + foxNaviMap->MapBase->Y) * naviMap->Scale
+                    naviMap->X + (naviMap->MapImage->X + naviMap->MapImage->OriginX + naviMap->MapBase->X) * naviMap->Scale,
+                    naviMap->Y + (naviMap->MapImage->Y + naviMap->MapImage->OriginY + naviMap->MapBase->Y) * naviMap->Scale
                 );
 
                 var player = objectTable.LocalPlayer;
@@ -102,9 +99,9 @@ namespace FoxTweaks.Services
 
                 var playerCoordinates = Vector2.Create(player.Position.X, player.Position.Z);
                 var rotationMatrix = Matrix3x2.Identity;
-                if (!foxNaviMap->Atk2DNaviMap.NorthLockedUp)
+                if (!naviMap->NaviMap.NorthLockedUp)
                 {
-                    rotationMatrix = Matrix3x2.CreateRotation(float.DegreesToRadians(foxNaviMap->Atk2DNaviMap.PlayerConeRotation));
+                    rotationMatrix = Matrix3x2.CreateRotation(float.DegreesToRadians(naviMap->NaviMap.PlayerConeRotation));
                 }
 
                 var friends = objectTable.PlayerObjects.AsValueEnumerable()
@@ -114,9 +111,9 @@ namespace FoxTweaks.Services
                 foreach (var battleChara in friends)
                 {
                     var battleCharaCoordinates = Vector2.Create(battleChara.Position.X, battleChara.Position.Z);
-                    var battleCharaOffset = ClampVectorLength((battleCharaCoordinates - playerCoordinates) * (foxNaviMap->Atk2DNaviMap.MarkerPositionScaling * _mapSizeFactor) * naviMap->Scale, 66f * naviMap->Scale);
+                    var battleCharaOffset = ClampVectorLength((battleCharaCoordinates - playerCoordinates) * (naviMap->NaviMap.MarkerPositionScaling * _mapSizeFactor) * naviMap->Scale, 66f * naviMap->Scale);
 
-                    if (!foxNaviMap->Atk2DNaviMap.NorthLockedUp)
+                    if (!naviMap->NaviMap.NorthLockedUp)
                     {
                         battleCharaOffset = Vector2.Transform(battleCharaOffset, rotationMatrix);
                     }
@@ -154,23 +151,4 @@ namespace FoxTweaks.Services
             return vector / length * maxLength;
         }
     }
-}
-
-[StructLayout(LayoutKind.Explicit, Size = 0x3A90)]
-internal unsafe struct FoxAddonNaviMap
-{
-    [FieldOffset(0x238)] public FoxAtk2DNaviMap Atk2DNaviMap;
-    [FieldOffset(0x15D8)] public AtkComponentNode* MapBase;
-    [FieldOffset(0x15E0)] public AtkImageNode* MapImage;
-    [FieldOffset(0x15F0)] public AtkImageNode* Mask;
-    [FieldOffset(0x3A78)] public float MarkerPositionScaling;
-}
-
-[StructLayout(LayoutKind.Explicit, Size = 0x134D)]
-internal struct FoxAtk2DNaviMap
-{
-    [FieldOffset(0x28)] public float MarkerRadiusScale;
-    [FieldOffset(0x2C)] public float MarkerPositionScaling;
-    [FieldOffset(0x34)] public float PlayerConeRotation;
-    [FieldOffset(0x134C)] public bool NorthLockedUp;
 }
