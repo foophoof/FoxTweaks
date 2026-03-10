@@ -1,29 +1,20 @@
 using DalaMock.Host.Mediator;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using Dalamud.Game.Command;
 using Dalamud.Plugin.Services;
 using FoxTweaks.Mediator;
 using Lumina.Excel;
 using Lumina.Excel.Sheets;
 using Microsoft.Extensions.Hosting;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace FoxTweaks.Services;
 
 public class RandomClassService(ICommandManager commandManager, IPluginLog pluginLog, IChatGui chatGui, ExcelSheet<ClassJob> classJobs, IPlayerState playerState, MediatorService mediatorService) : IHostedService
 {
-    private enum JobType : byte
-    {
-        Tank = 1,
-        PureHealer = 2,
-        Melee = 3,
-        PhysicalRanged = 4,
-        MagicalRanged = 5,
-        BarrierHealer = 6,
-    }
 
     private readonly Random _random = new();
 
@@ -106,5 +97,15 @@ public class RandomClassService(ICommandManager commandManager, IPluginLog plugi
         return classJobs
             .Where(c => !c.IsLimitedJob)
             .Where(c => playerState.ClassJob.RowId != c.RowId);
+    }
+
+    private enum JobType : byte
+    {
+        Tank = 1,
+        PureHealer = 2,
+        Melee = 3,
+        PhysicalRanged = 4,
+        MagicalRanged = 5,
+        BarrierHealer = 6,
     }
 }

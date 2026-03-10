@@ -31,7 +31,7 @@ public sealed class Plugin : HostedPlugin
     }
 
     /// <summary>
-    /// Configures the optional services to register automatically for use in your plugin.
+    ///     Configures the optional services to register automatically for use in your plugin.
     /// </summary>
     /// <returns>A HostedPluginOptions configured with the options you required.</returns>
     public override HostedPluginOptions ConfigureOptions()
