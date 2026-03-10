@@ -1,4 +1,5 @@
 using Dalamud.Bindings.ImGui;
+using Dalamud.Game.Addon.Events;
 using Dalamud.Game.ClientState.Objects.Enums;
 using Dalamud.Interface;
 using Dalamud.Plugin.Services;
@@ -24,9 +25,8 @@ public class MiniMapService(
 ) : IHostedService
 {
     private readonly uint _borderColor = ImGui.ColorConvertFloat4ToU32(new Vector4(0.957f, 0.533f, 0.051f, 1) * 0.7f);
-
     private readonly uint _circleColor = ImGui.ColorConvertFloat4ToU32(new Vector4(0.957f, 0.533f, 0.051f, 1));
-    private readonly Queue<Vector2> _circlePositions = new();
+    private readonly Queue<Vector2> _circlePositions = new(objectTable.Length);
     private float _mapSizeFactor = 1f;
     private bool _miniMapVisible;
 
@@ -69,56 +69,11 @@ public class MiniMapService(
         }
     }
 
-    private unsafe void FrameworkOnUpdate(IFramework _)
+    private void FrameworkOnUpdate(IFramework _)
     {
         try
         {
-            var naviMap = gameGui.GetAddonByName<AddonNaviMap>("_NaviMap");
-            if (naviMap is null)
-            {
-                return;
-            }
-
-            _miniMapVisible = naviMap->IsVisible;
-            if (!_miniMapVisible)
-            {
-                return;
-            }
-
-            var origin = Vector2.Create(
-                naviMap->X + (naviMap->MapImage->X + naviMap->MapImage->OriginX + naviMap->MapBase->X) * naviMap->Scale,
-                naviMap->Y + (naviMap->MapImage->Y + naviMap->MapImage->OriginY + naviMap->MapBase->Y) * naviMap->Scale
-            );
-
-            var player = objectTable.LocalPlayer;
-            if (player is null)
-            {
-                return;
-            }
-
-            var playerCoordinates = Vector2.Create(player.Position.X, player.Position.Z);
-            var rotationMatrix = Matrix3x2.Identity;
-            if (!naviMap->NaviMap.NorthLockedUp)
-            {
-                rotationMatrix = Matrix3x2.CreateRotation(float.DegreesToRadians(naviMap->NaviMap.PlayerConeRotation));
-            }
-
-            var friends = objectTable.PlayerObjects.AsValueEnumerable()
-                .Where(c => (c.StatusFlags & StatusFlags.Friend) != 0)
-                .Where(c => (c.StatusFlags & StatusFlags.AllianceMember) == 0)
-                .Where(c => (c.StatusFlags & StatusFlags.PartyMember) == 0);
-            foreach (var battleChara in friends)
-            {
-                var battleCharaCoordinates = Vector2.Create(battleChara.Position.X, battleChara.Position.Z);
-                var battleCharaOffset = ClampVectorLength((battleCharaCoordinates - playerCoordinates) * (naviMap->NaviMap.MarkerPositionScaling * _mapSizeFactor) * naviMap->Scale, 66f * naviMap->Scale);
-
-                if (!naviMap->NaviMap.NorthLockedUp)
-                {
-                    battleCharaOffset = Vector2.Transform(battleCharaOffset, rotationMatrix);
-                }
-
-                _circlePositions.Enqueue(origin + battleCharaOffset);
-            }
+            EnqueueCircles();
         }
         catch (Exception e)
         {
@@ -137,6 +92,67 @@ public class MiniMapService(
         }
 
         _mapSizeFactor = agentMap->CurrentMapSizeFactorFloat;
+    }
+
+    private unsafe void EnqueueCircles() {
+
+        var naviMap = gameGui.GetAddonByName<AddonNaviMap>("_NaviMap");
+        if (naviMap is null)
+        {
+            return;
+        }
+
+        _miniMapVisible = naviMap->IsVisible;
+        if (!_miniMapVisible)
+        {
+            return;
+        }
+
+        var origin = OriginForNaviMap(naviMap);
+        var playerCoordinates = XZOnly(objectTable.LocalPlayer?.Position ?? Vector3.Zero);
+        var rotationMatrix = CreateRotationMatrix(naviMap->NaviMap.PlayerConeRotation, !naviMap->NaviMap.NorthLockedUp);
+
+        foreach (var battleChara in objectTable.PlayerObjects)
+        {
+            if ((battleChara.StatusFlags & StatusFlags.AllianceMember) != 0 || (battleChara.StatusFlags & StatusFlags.PartyMember) != 0)
+            {
+                continue;
+            }
+            var battleCharaCoordinates = XZOnly(battleChara.Position);
+            var battleCharaOffset = ClampVectorLength((battleCharaCoordinates - playerCoordinates) * (naviMap->NaviMap.MarkerPositionScaling * _mapSizeFactor) * naviMap->Scale, 66f * naviMap->Scale);
+
+            if (!naviMap->NaviMap.NorthLockedUp)
+            {
+                battleCharaOffset = Vector2.Transform(battleCharaOffset, rotationMatrix);
+            }
+
+            _circlePositions.Enqueue(origin + battleCharaOffset);
+        }
+    }
+
+    private static unsafe Vector2 OriginForNaviMap(AddonNaviMap* naviMap)
+    {
+        if (naviMap is null)
+        {
+            return Vector2.Zero;
+        }
+
+        var naviMapPos = Vector2.Create(naviMap->X, naviMap->Y);
+        var naviMapMapImagePos = Vector2.Create(naviMap->MapImage->X, naviMap->MapImage->Y);
+        var naviMapMapImageOrigin = Vector2.Create(naviMap->MapImage->OriginX, naviMap->MapImage->OriginY);
+        var naviMapMapBasePos = Vector2.Create(naviMap->MapBase->X, naviMap->MapBase->Y);
+
+        return naviMapPos + (naviMapMapImagePos + naviMapMapImageOrigin + naviMapMapBasePos) * naviMap->Scale;
+    }
+
+    private static Matrix3x2 CreateRotationMatrix(float rotation, bool enableRotation)
+    {
+        return enableRotation ? Matrix3x2.CreateRotation(float.DegreesToRadians(rotation)) : Matrix3x2.Identity;
+    }
+
+    private static Vector2 XZOnly(Vector3 xyz)
+    {
+        return Vector2.Create(xyz.X, xyz.Z);
     }
 
     private static Vector2 ClampVectorLength(Vector2 vector, float maxLength)
