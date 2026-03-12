@@ -10,7 +10,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="DalaMock.Host" Version="4.1.1"/>
+        <PackageReference Include="DalaMock.Host" Version="5.0.0"/>
         <PackageReference Include="ZLinq" Version="1.5.5"/>
     </ItemGroup>
 </Project>

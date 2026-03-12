@@ -11,20 +11,7 @@ namespace FoxTweaks;
 
 public sealed class Plugin : HostedPlugin
 {
-    public Plugin(
-        IDalamudPluginInterface pluginInterface,
-        IPluginLog pluginLog,
-        IFramework framework,
-        ICommandManager commandManager,
-        IDataManager dataManager,
-        ITextureProvider textureProvider,
-        IChatGui chatGui,
-        IDtrBar dtrBar,
-        IGameGui gameGui,
-        IClientState clientState,
-        IPlayerState playerState,
-        IObjectTable objectTable)
-        : base(pluginInterface, pluginLog, framework, commandManager, dataManager, textureProvider, chatGui, dtrBar, gameGui, clientState, playerState, objectTable)
+    public Plugin(IDalamudPluginInterface pluginInterface) : base(pluginInterface)
     {
         CreateHost();
         Start();
