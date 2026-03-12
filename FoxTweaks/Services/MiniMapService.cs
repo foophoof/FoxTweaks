@@ -112,7 +112,7 @@ public class MiniMapService(
 
         foreach (var battleChara in objectTable.PlayerObjects)
         {
-            if ((battleChara.StatusFlags & StatusFlags.AllianceMember) != 0 || (battleChara.StatusFlags & StatusFlags.PartyMember) != 0)
+            if ((battleChara.StatusFlags & StatusFlags.AllianceMember) != 0 || (battleChara.StatusFlags & StatusFlags.PartyMember) != 0 || (battleChara.StatusFlags & StatusFlags.Friend) == 0)
             {
                 continue;
             }
